@@ -624,7 +624,7 @@
             <label>抬头表情</label>
             <input type="text" id="emojiTop" placeholder="[玫瑰]" value="[玫瑰]">
           </div>
-          <div class="field">
+          <div class="field" style="display:none">
             <label>称呼方式</label>
             <select id="greetingStyle">
               <option value="name">直接用姓名</option>
@@ -636,14 +636,14 @@
         </div>
       </div>
 
-      <!-- 课堂笔记 -->
+      <!-- 课堂反馈记录 -->
       <div class="card">
         <div class="card-title">
-          <span>课堂笔记</span>
+          <span>课堂反馈记录</span>
           <span style="color:var(--brand);font-size:12px;font-weight:500;cursor:pointer" id="toggleExample">📌 示例</span>
         </div>
-        <label>整堂课情况（可含多个学生，也可一对一）</label>
-        <textarea id="notes" placeholder="按「姓名：表现」的方式说/写，也可以整段自然描述，AI 会自动识别每个学生。&#10;&#10;例如：&#10;今天讲万以上数的认识。子芸状态很好，读法和组数都没问题，写法遇到中间有0的时候容易写错，讲完之后能改正过来。小明上课有点走神，读法基本会，组数还不熟练，需要多练习。"></textarea>
+        <label>记录整堂课的情况（可含多个学生，也可一对一）</label>
+        <textarea id="notes" placeholder="按「姓名：表现」的方式写，也可以整段自然描述，AI 会自动识别每个学生。&#10;&#10;例如：&#10;今天讲万以上数的认识。子芸状态很好，读法和组数都没问题，写法遇到中间有0的时候容易写错，讲完之后能改正过来。小明上课有点走神，读法基本会，组数还不熟练，需要多练习。"></textarea>
         <div class="char-count"><span id="noteCount">0</span> 字</div>
         <div class="quick-students" id="quickStudents">
           <div class="hint">快速插入学生：</div>
@@ -783,12 +783,16 @@
     <div class="modal-title">添加学生</div>
     <div class="card">
       <div class="field">
-        <label>学生姓名</label>
-        <input type="text" id="newStudentName" placeholder="请输入学生姓名">
+        <label>学生全名</label>
+        <input type="text" id="newStudentName" placeholder="请输入学生全名">
+      </div>
+      <div class="field">
+        <label>昵称（反馈里用这个称呼）</label>
+        <input type="text" id="newStudentNickname" placeholder="如：子芸（不填就用全名）">
       </div>
       <div class="field">
         <label>备注（选填）</label>
-        <input type="text" id="newStudentNote" placeholder="如：三年级、一对一 等">
+        <input type="text" id="newStudentNote" placeholder="如：三年级、基础薄弱、尖子生 等">
       </div>
       <button class="btn btn-primary" id="saveStudentBtn">保存</button>
     </div>
@@ -856,29 +860,40 @@ function buildSystemPrompt() {
   return `你是一位经验丰富的机构数学老师助手，专门帮老师撰写高质量的课堂反馈。
 
 【任务】
-把老师提供的课堂简记，扩写成专业、具体、有温度的课堂反馈，发送给家长。
+把老师提供的课堂反馈记录，扩写成专业、具体、有温度的课堂反馈，发送给家长看。
 
 【每个学生反馈格式】
 生成一段可直接复制发送的完整文本，结构如下：
 第1行：{日期}{学科}课堂反馈{抬头表情}
-第2行：{姓名}
-第3行起：正文（两段，约${lengthDesc}），内容依次包含：
-  第一段：课堂整体表现 + 掌握好的知识点（亮点）+ 具体例子
-  第二段：需要改进的地方 + 具体错误案例 + 学习建议
+第2行：今天{昵称}的课堂情况：
+第3行起：正文（约${lengthDesc}），内容安排：
+  - 先写课堂整体表现和掌握好的地方（结合具体例子）
+  - 再写需要加强的地方和学习建议（积极表达）
+  - 如果有课后叮嘱或作业安排，放在最后
+  - 段落之间自然过渡，不用标序号
+
+【学生识别规则】
+1. 优先从【学生档案】中匹配，匹配到的一律用【昵称】输出
+2. 档案里没有的学生，从课堂反馈记录中智能识别人名
+3. 识别到的新学生，name字段用识别到的名字，nickname字段留空
 
 【写作要求】
-1. **语气**：${toneDesc}，直接称呼学生名字，不用"该生""同学""孩子"等套话。
-2. **具体**：必须结合老师笔记中的具体内容，禁止空泛表扬。要提到具体的知识点。
-3. **真实**：只基于老师提供的笔记内容，**绝对不编造**笔记里没有的信息。如果笔记里没有提到某个方面，就不写。
-4. **专业**：涉及数学知识点时，要体现专业性，说清楚重难点和方法。
-5. **积极**：即使学生有不足，也要用积极、鼓励的语气表达，先说优点再说改进点。
-6. **禁忌**：绝对禁止使用"差""笨""差劲儿""不好"等负面词汇。用"需要加强""还可以提升""有待熟练"等积极表达。
-7. **结尾**：以学习建议自然收尾，不要加"继续保持""加油""很棒"等套话，也不加结尾表情。
-8. **多学生时**：每个学生的反馈要根据其实际表现区分，禁止雷同。
+1. **语气**：${toneDesc}，亲切自然，像老师和家长说话一样。
+2. **昵称优先**：正文里称呼学生一律用昵称，不用全名，不用"该生""同学""孩子"等套话。
+3. **真实不编造**：只基于老师提供的反馈记录内容，**绝对不编造**记录里没有的信息。没有提到的方面就不写，不要画蛇添足。
+4. **有就写，没有就不写**：
+   - 笔记里提到了知识点，就详细写知识点
+   - 笔记里没提到知识点，就只写课堂表现和状态
+   - 笔记里有课后叮嘱/作业，就加上
+   - 笔记里没有课后叮嘱，就不要加
+5. **全积极表达**：绝对禁止使用"差""笨""不好""差劲"等负面词汇。不足的地方用"需要加强""还可以提升""有待熟练""需要多练习"等积极表达。
+6. **具体不空泛**：结合记录中的具体例子来说，不要空泛表扬。
+7. **结尾自然**：以学习建议或课后叮嘱自然收尾，不要加"继续保持""加油""很棒"等套话，也不加结尾表情。
+8. **多学生区分**：每个学生的反馈根据其实际表现来写，内容和侧重点要不同，禁止雷同。
 
 【输出格式】
 严格只输出JSON，不要输出任何解释、markdown或额外文字。格式：
-{"topic":"本节课知识点简短描述","students":[{"name":"学生姓名","feedback":"完整反馈文本（含抬头行+姓名行+正文，可直接复制发送）"}]}`;
+{"topic":"本节课知识点简短描述（没有就留空）","students":[{"name":"学生全名（档案里的名字或识别到的名字）","nickname":"昵称（档案里有就填，没有就留空）","feedback":"完整反馈文本（含抬头行+正文，可直接复制发送）","isNew":true/false}]}`;
 }
 
 function buildUserPrompt() {
@@ -887,19 +902,32 @@ function buildUserPrompt() {
   const subject = $('subject').value.trim() || '数学';
   const topic = $('topic').value.trim();
   const emoji = $('emojiTop').value.trim() || '';
-  const greeting = $('greetingStyle').value;
   const notes = $('notes').value.trim();
   const students = load('students', []);
-  const roster = students.map(s => s.name).filter(Boolean).join('、');
+
+  let rosterInfo = '';
+  if (students.length > 0) {
+    rosterInfo = '【学生档案】（优先匹配以下学生，匹配到的用昵称输出）\n';
+    students.forEach(s => {
+      const nick = s.nickname ? `，昵称：${s.nickname}` : '';
+      const note = s.note ? `，备注：${s.note}` : '';
+      rosterInfo += `- ${s.name}${nick}${note}\n`;
+    });
+    rosterInfo += '\n识别规则：\n';
+    rosterInfo += '1. 反馈记录中出现全名或昵称，都算匹配到该学生\n';
+    rosterInfo += '2. 匹配到的学生，输出时name用全名，nickname用昵称，正文里用昵称称呼\n';
+    rosterInfo += '3. 档案里没有的学生，自动识别，isNew设为true\n';
+  } else {
+    rosterInfo = '【学生档案】暂无，请从反馈记录中智能识别所有学生，isNew都设为true\n';
+  }
 
   let p = `【日期】${dateStr}\n`;
   p += `【学科】${subject}\n`;
   p += `【抬头表情】${emoji || '无'}\n`;
-  p += `【称呼方式】${greeting}\n`;
-  p += topic ? `【知识点（已指定）】${topic}\n` : `【知识点】未指定，请从笔记中提取\n`;
-  p += roster ? `【学生名单】${roster}\n请优先按名单在笔记中匹配识别学生。\n` : `【学生名单】未提供，请从笔记中智能识别人名。\n`;
-  p += `\n【课堂笔记】\n${notes}\n\n`;
-  p += `请识别笔记中涉及的每个学生（一对一就一个），为每人单独生成一份完整反馈。`;
+  p += topic ? `【知识点】${topic}\n` : `【知识点】未指定，从反馈记录中提取\n`;
+  p += rosterInfo;
+  p += `\n【课堂反馈记录】\n${notes}\n\n`;
+  p += `请识别记录中涉及的每个学生，为每人单独生成一份完整的课堂反馈。`;
   
   return p;
 }
@@ -914,8 +942,8 @@ async function generateFeedback() {
   }
   
   const notes = $('notes').value.trim();
-  if (!notes) { toast('请先填写课堂笔记'); return; }
-  if (notes.length < MIN_NOTES_LEN) { toast(`笔记内容过少（不足${MIN_NOTES_LEN}字）`); return; }
+  if (!notes) { toast('请先填写课堂反馈记录'); return; }
+  if (notes.length < MIN_NOTES_LEN) { toast(`内容过少（不足${MIN_NOTES_LEN}字）`); return; }
 
   const btn = $('genBtn');
   btn.disabled = true;
@@ -962,7 +990,18 @@ async function generateFeedback() {
     
     renderResults(obj);
     saveHistory(obj);
-    showStatus('已生成 ' + (obj.students?.length || 0) + ' 条反馈 ✨', 'ok');
+    
+    // 存储当前结果供重新优化使用
+    window._currentResults = obj;
+    
+    // 统计新学生数量
+    const newCount = (obj.students || []).filter(s => s.isNew).length;
+    const total = obj.students?.length || 0;
+    let msg = '已生成 ' + total + ' 条反馈 ✨';
+    if (newCount > 0) {
+      msg += '（' + newCount + ' 位新学生，可点击添加）';
+    }
+    showStatus(msg, 'ok');
     
     // 回填知识点
     if (!$('topic').value.trim() && obj.topic) {
@@ -1024,16 +1063,19 @@ function renderResults(obj) {
   }
 
   students.forEach((s, i) => {
+    const displayName = s.nickname || s.name || ('学生' + (i+1));
+    const newBadge = s.isNew ? '<span class="result-badge" style="background:#fef3c7;color:#92400e;margin-left:6px">新</span>' : '';
     html += `
-      <div class="result-card">
+      <div class="result-card" data-result-index="${i}">
         <div class="result-header">
-          <div class="result-name">${esc(s.name || ('学生' + (i+1)))}</div>
+          <div class="result-name">${esc(displayName)}${newBadge}</div>
           <span class="result-badge">${i+1}/${students.length}</span>
         </div>
         <div class="result-body" contenteditable="true" spellcheck="false" data-index="${i}">${esc(s.feedback || '')}</div>
         <div class="result-actions">
           <button class="btn btn-sm btn-primary" data-action="copy" data-index="${i}">📋 复制</button>
-          <button class="btn btn-sm btn-secondary" data-action="regenerate" data-index="${i}">🔄 重写</button>
+          <button class="btn btn-sm btn-secondary" data-action="optimize" data-index="${i}">✨ 重新优化</button>
+          ${s.isNew ? `<button class="btn btn-sm btn-outline" data-action="add-student" data-index="${i}">➕ 添加学生</button>` : ''}
         </div>
       </div>
     `;
@@ -1049,20 +1091,54 @@ function renderResults(obj) {
     };
   }
 
+  // 复制按钮
   box.querySelectorAll('[data-action="copy"]').forEach(btn => {
     btn.onclick = () => {
       const idx = parseInt(btn.dataset.index);
       const body = box.querySelector(`.result-body[data-index="${idx}"]`);
-      const name = students[idx]?.name || ('学生' + (idx+1));
+      const name = students[idx]?.nickname || students[idx]?.name || ('学生' + (idx+1));
       copyText(body.innerText, name);
     };
   });
 
-  box.querySelectorAll('[data-action="regenerate"]').forEach(btn => {
+  // 重新优化按钮
+  box.querySelectorAll('[data-action="optimize"]').forEach(btn => {
+    btn.onclick = async () => {
+      const idx = parseInt(btn.dataset.index);
+      const body = box.querySelector(`.result-body[data-index="${idx}"]`);
+      const currentText = body.innerText.trim();
+      if (!currentText) { toast('没有内容可以优化'); return; }
+      
+      const originalBtn = btn;
+      const originalText = originalBtn.innerHTML;
+      originalBtn.disabled = true;
+      originalBtn.innerHTML = '<span class="spinner" style="border-color:rgba(109,74,255,.3);border-top-color:var(--brand)"></span>优化中…';
+      
+      try {
+        const optimized = await optimizeFeedback(currentText);
+        body.innerText = optimized;
+        // 更新内存中的数据
+        if (window._currentResults && window._currentResults.students[idx]) {
+          window._currentResults.students[idx].feedback = optimized;
+        }
+        toast('已优化 ✓');
+      } catch(e) {
+        toast('优化失败：' + e.message);
+      } finally {
+        originalBtn.disabled = false;
+        originalBtn.innerHTML = originalText;
+      }
+    };
+  });
+
+  // 添加学生按钮（新学生）
+  box.querySelectorAll('[data-action="add-student"]').forEach(btn => {
     btn.onclick = () => {
       const idx = parseInt(btn.dataset.index);
-      const name = students[idx]?.name;
-      toast('单独重写功能开发中…');
+      const s = students[idx];
+      if (s && s.isNew) {
+        showAddStudentFromResult(s.name);
+      }
     };
   });
 
@@ -1074,6 +1150,54 @@ function renderResults(obj) {
       document.execCommand('insertText', false, text);
     });
   });
+}
+
+// ===================== 单条重新优化 =====================
+async function optimizeFeedback(text) {
+  const key = load('apiKey', '');
+  if (!key) throw new Error('请先设置 API Key');
+
+  const base = load('apiBase', 'https://api.deepseek.com').replace(/\/$/, '');
+  const model = load('model', 'deepseek-chat');
+
+  const systemPrompt = `你是一位专业的课堂反馈润色助手。
+【任务】
+优化老师写好的课堂反馈，让它更流畅、更自然、更适合发在有家长和领导的微信群里。
+
+【要求】
+1. **保留原意**：保留原文80%-90%的核心内容和信息，只优化表达，不改变意思。
+2. **调整语序**：让句子更通顺、更自然，像真人说的话。
+3. **积极表达**：确保所有表述都是积极的、鼓励的，不用负面词汇。
+4. **不添加新内容**：绝对不要编造原文里没有的信息，不要画蛇添足。
+5. **不减少关键信息**：原文里的知识点、例子、建议都要保留。
+6. **保持格式**：保留原有的换行和结构，不要合并或拆分段落。
+
+直接输出优化后的文本，不要加任何解释或前缀。`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  const resp = await fetch(base + '/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: text }
+      ],
+      temperature: 0.5
+    }),
+    signal: controller.signal
+  });
+  clearTimeout(timeoutId);
+
+  if (!resp.ok) {
+    throw new Error('请求失败 ' + resp.status);
+  }
+
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content?.trim() || text;
 }
 
 async function copyText(text, label) {
@@ -1188,7 +1312,7 @@ function renderHistory() {
 // ===================== 学生管理 =====================
 function getStudents() { return load('students', []); }
 
-function addStudent(name, note) {
+function addStudent(name, note, nickname) {
   const students = getStudents();
   if (students.some(s => s.name === name)) {
     toast('该学生已存在');
@@ -1197,6 +1321,7 @@ function addStudent(name, note) {
   students.push({
     id: Date.now(),
     name: name,
+    nickname: nickname || '',
     note: note || '',
     feedbacks: [],
     createdAt: Date.now()
@@ -1205,6 +1330,14 @@ function addStudent(name, note) {
   renderStudentList();
   renderStudentChips();
   return true;
+}
+
+// 从生成结果中添加学生（弹窗）
+function showAddStudentFromResult(name) {
+  $('newStudentName').value = name || '';
+  $('newStudentNickname').value = name || ''; // 默认昵称就是名字
+  $('newStudentNote').value = '';
+  $('addStudentModal').classList.add('show');
 }
 
 function deleteStudent(id) {
@@ -1243,11 +1376,12 @@ function renderStudentList() {
   let html = '';
   students.forEach(s => {
     const count = s.feedbacks?.length || 0;
+    const displayName = s.nickname ? `${s.nickname}（${s.name}）` : s.name;
     html += `
       <div class="student-item" data-id="${s.id}">
-        <div class="student-avatar">${esc(s.name.slice(0, 1))}</div>
+        <div class="student-avatar">${esc((s.nickname || s.name).slice(0, 1))}</div>
         <div class="student-info">
-          <div class="student-name">${esc(s.name)}</div>
+          <div class="student-name">${esc(displayName)}</div>
           <div class="student-desc">${esc(s.note || '暂无备注')}</div>
         </div>
         <div class="student-count">${count} 条</div>
@@ -1582,6 +1716,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 添加学生
   $('addStudentBtn').addEventListener('click', () => {
     $('newStudentName').value = '';
+    $('newStudentNickname').value = '';
     $('newStudentNote').value = '';
     $('addStudentModal').classList.add('show');
   });
@@ -1590,9 +1725,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   $('saveStudentBtn').addEventListener('click', () => {
     const name = $('newStudentName').value.trim();
+    const nickname = $('newStudentNickname').value.trim();
     const note = $('newStudentNote').value.trim();
     if (!name) { toast('请输入学生姓名'); return; }
-    if (addStudent(name, note)) {
+    if (addStudent(name, note, nickname)) {
       $('addStudentModal').classList.remove('show');
       toast('添加成功 ✓');
     }
