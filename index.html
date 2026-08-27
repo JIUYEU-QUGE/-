@@ -923,6 +923,26 @@ const MIN_NOTES_LEN = 8;
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+// 去掉所有 Markdown 符号，确保输出纯文本
+function stripMarkdown(text) {
+  if (!text) return text;
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')          // **加粗** → 去掉
+    .replace(/__(.+?)__/g, '$1')              // __加粗__ → 去掉
+    .replace(/\*(.+?)\*/g, '$1')              // *斜体* → 去掉
+    .replace(/_(.+?)_/g, '$1')                // _斜体_ → 去掉
+    .replace(/`(.+?)`/g, '$1')                // `代码` → 去掉
+    .replace(/~~(.+?)~~/g, '$1')              // ~~删除线~~ → 去掉
+    .replace(/^#{1,6}\s+/gm, '')              // # 标题 → 去掉
+    .replace(/^\s*[-*+]\s+/gm, '• ')          // 无序列表 → 改成圆点
+    .replace(/^\s*(\d+)\.\s+/gm, '$1. ')      // 有序列表 → 保留数字
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')       // [链接](url) → 只留文字
+    .replace(/^---+$/gm, '')                  // 分隔线 → 去掉
+    .replace(/^> /gm, '')                     // 引用 → 去掉
+    .replace(/\n{3,}/g, '\n\n')               // 多余空行 → 最多留2个
+    .trim();
+}
+
 function load(key, def) {
   try {
     const v = localStorage.getItem(STORAGE_PREFIX + key);
@@ -1221,7 +1241,10 @@ function showRetry() {
 // ===================== 渲染结果 =====================
 function renderResults(obj) {
   const box = $('results');
-  const students = obj.students || [];
+  const students = (obj.students || []).map(s => ({
+    ...s,
+    feedback: stripMarkdown(s.feedback || '')
+  }));
   
   if (!students.length) {
     box.innerHTML = '<div class="empty-state"><div class="empty-icon">🤔</div><div class="empty-text">未识别到学生</div><div class="empty-text" style="font-size:12px">请在笔记中补充学生姓名</div></div>';
@@ -1288,7 +1311,7 @@ function renderResults(obj) {
       originalBtn.innerHTML = '<span class="spinner" style="border-color:rgba(109,74,255,.3);border-top-color:var(--brand)"></span>优化中…';
       
       try {
-        const optimized = await optimizeFeedback(currentText);
+        const optimized = stripMarkdown(await optimizeFeedback(currentText));
         body.innerText = optimized;
         // 更新内存中的数据
         if (window._currentResults && window._currentResults.students[idx]) {
