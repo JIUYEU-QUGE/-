@@ -565,6 +565,46 @@
     opacity:.8;
   }
 
+  /* Template Tabs */
+  .template-tabs{
+    display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;
+  }
+  .template-tab{
+    padding:6px 14px;border-radius:999px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text-sub);font-size:13px;
+    cursor:pointer;font-family:inherit;
+  }
+  .template-tab.active{
+    background:var(--brand);color:#fff;border-color:var(--brand);
+  }
+
+  /* Template Item */
+  .template-item{
+    background:var(--surface);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:10px;border:1px solid var(--border);
+  }
+  .template-header{
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;
+  }
+  .template-name{font-size:14px;font-weight:600}
+  .template-cat{
+    font-size:11px;padding:2px 8px;border-radius:999px;
+    background:var(--brand-soft);color:var(--brand);font-weight:500;
+  }
+  .template-content{
+    font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;
+    background:var(--bg);padding:10px 12px;border-radius:var(--radius-sm);
+    margin-bottom:10px;max-height:120px;overflow-y:auto;
+  }
+  .template-actions{display:flex;gap:8px}
+  .template-actions .btn{flex:1}
+
+  /* Tips box */
+  .tips-box{
+    background:var(--brand-soft);border-radius:var(--radius-sm);
+    padding:12px;margin-bottom:12px;
+  }
+
   @media (min-width:640px){
     body{padding:0}
     .app{border-left:1px solid var(--border);border-right:1px solid var(--border)}
@@ -594,6 +634,7 @@
   <!-- Tab Bar -->
   <div class="tab-bar">
     <button class="tab-item active" data-tab="generate">✏️ 写反馈</button>
+    <button class="tab-item" data-tab="templates">📄 模板</button>
     <button class="tab-item" data-tab="history">📋 历史</button>
     <button class="tab-item" data-tab="students">👥 学生</button>
   </div>
@@ -640,7 +681,19 @@
       <div class="card">
         <div class="card-title">
           <span>课堂反馈记录</span>
-          <span style="color:var(--brand);font-size:12px;font-weight:500;cursor:pointer" id="toggleExample">📌 示例</span>
+          <span style="color:var(--brand);font-size:12px;font-weight:500;cursor:pointer" id="toggleTips">💡 填写提示</span>
+        </div>
+        <div class="tips-box" id="tipsBox" style="display:none">
+          <div style="font-size:13px;color:var(--text-sub);line-height:1.8">
+            <div style="font-weight:600;margin-bottom:4px;color:var(--text)">可以从这几个方面记录：</div>
+            <div>📚 <b>课堂内容</b>：今天学了什么知识点</div>
+            <div>⭐ <b>课堂表现</b>：状态好不好、专不专注</div>
+            <div>✅ <b>掌握好的地方</b>：哪些知识点学得好，举个例子</div>
+            <div>🔧 <b>需要加强的地方</b>：哪里还不熟练，具体问题是什么</div>
+            <div>💡 <b>亮点/好习惯</b>：比如主动举手、会圈关键词、善于思考等</div>
+            <div>📝 <b>课后作业</b>：有就写，没有就不写</div>
+            <div style="margin-top:6px;color:var(--text-light);font-size:12px">不用每条都写，想到什么写什么，AI 会帮你整理 ✨</div>
+          </div>
         </div>
         <label>记录整堂课的情况（可含多个学生，也可一对一）</label>
         <textarea id="notes" placeholder="按「姓名：表现」的方式写，也可以整段自然描述，AI 会自动识别每个学生。&#10;&#10;例如：&#10;今天讲万以上数的认识。子芸状态很好，读法和组数都没问题，写法遇到中间有0的时候容易写错，讲完之后能改正过来。小明上课有点走神，读法基本会，组数还不熟练，需要多练习。"></textarea>
@@ -672,6 +725,28 @@
             <div class="empty-text">还没有历史记录</div>
             <div class="empty-text" style="font-size:12px;margin-top:4px">生成的反馈会自动保存在这里</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Templates Page -->
+    <div class="page" id="page-templates">
+      <div class="section-header">
+        <h2 class="section-title">反馈模板</h2>
+        <button class="btn btn-sm btn-secondary" id="addTemplateBtn">+ 新建模板</button>
+      </div>
+      <!-- 分类标签 -->
+      <div class="template-tabs" id="templateTabs">
+        <button class="template-tab active" data-cat="all">全部</button>
+        <button class="template-tab" data-cat="基础薄弱">基础薄弱</button>
+        <button class="template-tab" data-cat="中等">中等</button>
+        <button class="template-tab" data-cat="尖子生">尖子生</button>
+      </div>
+      <div id="templateList">
+        <div class="empty-state">
+          <div class="empty-icon">📄</div>
+          <div class="empty-text">还没有模板</div>
+          <div class="empty-text" style="font-size:12px;margin-top:4px">添加常用的反馈句式，快速复制使用</div>
         </div>
       </div>
     </div>
@@ -776,6 +851,33 @@
   </div>
 </div>
 
+<!-- Template Edit Modal -->
+<div class="modal-mask" id="templateModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="templateModalTitle">新建模板</div>
+    <div class="card">
+      <div class="field">
+        <label>模板名称</label>
+        <input type="text" id="tplName" placeholder="比如：计算粗心通用话术">
+      </div>
+      <div class="field">
+        <label>分类</label>
+        <select id="tplCategory">
+          <option value="基础薄弱">基础薄弱</option>
+          <option value="中等">中等</option>
+          <option value="尖子生">尖子生</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>模板内容</label>
+        <textarea id="tplContent" rows="6" placeholder="输入常用的反馈句式或段落..."></textarea>
+      </div>
+      <button class="btn btn-primary" id="saveTemplateBtn">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Student Modal -->
 <div class="modal-mask" id="addStudentModal">
   <div class="modal">
@@ -791,8 +893,16 @@
         <input type="text" id="newStudentNickname" placeholder="如：子芸（不填就用全名）">
       </div>
       <div class="field">
+        <label>学生类型</label>
+        <select id="newStudentType">
+          <option value="中等">中等</option>
+          <option value="基础薄弱">基础薄弱</option>
+          <option value="尖子生">尖子生</option>
+        </select>
+      </div>
+      <div class="field">
         <label>备注（选填）</label>
-        <input type="text" id="newStudentNote" placeholder="如：三年级、基础薄弱、尖子生 等">
+        <input type="text" id="newStudentNote" placeholder="如：三年级、其他补充说明 等">
       </div>
       <button class="btn btn-primary" id="saveStudentBtn">保存</button>
     </div>
@@ -857,43 +967,57 @@ function buildSystemPrompt() {
   if (tone === 'professional') toneDesc = '专业严谨，体现教学专业性';
   if (tone === 'concise') toneDesc = '简洁直接，重点突出';
 
-  return `你是一位经验丰富的机构数学老师助手，专门帮老师撰写高质量的课堂反馈。
+  return `你是一位经验丰富的机构数学老师助手，专门帮老师撰写高质量的课堂反馈，发送给家长看。
+
+【核心原则】
+1. **真实不编造**：只基于老师提供的反馈记录内容，**绝对不编造**记录里没有的任何信息。没有提到的方面就不写，不要画蛇添足。
+2. **详略自适应**：根据老师提供的内容详略自动调整反馈长度。内容多就写详细，内容少就写简洁，绝不凑字数。**宁少勿多**。
+3. **全积极表达**：全部用积极、鼓励的语气，不用任何负面词汇。
+4. **具体不空泛**：结合记录中的具体例子来说，不用空泛的套话。
 
 【任务】
-把老师提供的课堂反馈记录，扩写成专业、具体、有温度的课堂反馈，发送给家长看。
+把老师提供的课堂反馈记录，整理扩写成流畅、专业、有温度的课堂反馈，直接可以复制发到家长群里。
 
-【每个学生反馈格式】
-生成一段可直接复制发送的完整文本，结构如下：
-第1行：{日期}{学科}课堂反馈{抬头表情}
-第2行：今天{昵称}的课堂情况：
-第3行起：正文（约${lengthDesc}），内容安排：
-  - 先写课堂整体表现和掌握好的地方（结合具体例子）
-  - 再写需要加强的地方和学习建议（积极表达）
-  - 如果有课后叮嘱或作业安排，放在最后
-  - 段落之间自然过渡，不用标序号
+【反馈结构】
+开头固定格式：
+{日期}{学科}课堂反馈🌹🌹🌹
+
+内容安排（根据实际内容灵活调整，有就写，没有就跳过）：
+🌞 课堂内容：今天学了什么知识点
+🌞 课堂表现：学生的整体表现 + 掌握好的地方 + 具体例子
+需要关注的地方（如果有不足的话）：用积极的语气说需要改进的地方 + 具体例子 + 建议
+❤️ 课后作业：（如果记录里提到了作业，就加上；没有就不写）
+
+【写作风格要求】
+1. **语气**：亲切自然，像老师和家长说话一样，不用"该生""同学""孩子"等套话。
+2. **称呼**：正文里称呼学生一律用昵称，不用全名。
+3. **开头**：用"今天{昵称}整体表现不错"或类似的表达开场。
+4. **说问题的方式**：
+   - 不说"不好""差""错误多"，要说"需要关注的是""还有提升空间""需要多加练习"
+   - 不说"粗心"，要说"细节上还需要更细心"
+   - 先说优点再说需要改进的地方
+5. **给建议的方式**：
+   - 只基于记录里提到的问题给建议，不要自己发明新问题
+   - 建议要具体，可操作
+   - 用"建议……""可以……"这样的表达
+6. **常用表达（尽量自然地融入）**：
+   - 「整体表现不错」
+   - 「说明课后的巩固是有效的」
+   - 「掌握得也比之前更扎实了」
+   - 「跳步看似节省时间，实际上容易出错」
+   - 「概念层面是过关的，但应用还需要多加练习」
+   - 「基础和拔高题型都掌握得挺好的👍」
+   - 「善于观察和归纳，数感比较好」
+7. **结尾**：自然收尾，不要加"继续保持""加油""很棒"等套话，也不加结尾表情。
 
 【学生识别规则】
 1. 优先从【学生档案】中匹配，匹配到的一律用【昵称】输出
 2. 档案里没有的学生，从课堂反馈记录中智能识别人名
-3. 识别到的新学生，name字段用识别到的名字，nickname字段留空
-
-【写作要求】
-1. **语气**：${toneDesc}，亲切自然，像老师和家长说话一样。
-2. **昵称优先**：正文里称呼学生一律用昵称，不用全名，不用"该生""同学""孩子"等套话。
-3. **真实不编造**：只基于老师提供的反馈记录内容，**绝对不编造**记录里没有的信息。没有提到的方面就不写，不要画蛇添足。
-4. **有就写，没有就不写**：
-   - 笔记里提到了知识点，就详细写知识点
-   - 笔记里没提到知识点，就只写课堂表现和状态
-   - 笔记里有课后叮嘱/作业，就加上
-   - 笔记里没有课后叮嘱，就不要加
-5. **全积极表达**：绝对禁止使用"差""笨""不好""差劲"等负面词汇。不足的地方用"需要加强""还可以提升""有待熟练""需要多练习"等积极表达。
-6. **具体不空泛**：结合记录中的具体例子来说，不要空泛表扬。
-7. **结尾自然**：以学习建议或课后叮嘱自然收尾，不要加"继续保持""加油""很棒"等套话，也不加结尾表情。
-8. **多学生区分**：每个学生的反馈根据其实际表现来写，内容和侧重点要不同，禁止雷同。
+3. 识别到的新学生，name字段用识别到的名字，nickname字段留空，isNew设为true
 
 【输出格式】
 严格只输出JSON，不要输出任何解释、markdown或额外文字。格式：
-{"topic":"本节课知识点简短描述（没有就留空）","students":[{"name":"学生全名（档案里的名字或识别到的名字）","nickname":"昵称（档案里有就填，没有就留空）","feedback":"完整反馈文本（含抬头行+正文，可直接复制发送）","isNew":true/false}]}`;
+{"topic":"本节课知识点简短描述（没有就留空）","students":[{"name":"学生全名","nickname":"昵称（有就填，没有就留空）","feedback":"完整反馈文本（可直接复制发送）","isNew":true/false}]}`;
 }
 
 function buildUserPrompt() {
@@ -1309,10 +1433,183 @@ function renderHistory() {
   });
 }
 
+// ===================== 模板管理 =====================
+const DEFAULT_TEMPLATES = [
+  {
+    id: 1,
+    name: '计算跳步问题',
+    category: '基础薄弱',
+    content: '目前需要关注的是计算跳步的问题——跳步看似节省时间，实际上容易在进位、对位或商0占位等环节出错。建议做竖式时严格按步骤书写，每算完一步核对一下，把正确率稳住后再逐步提速。'
+  },
+  {
+    id: 2,
+    name: '概念懂但不会用',
+    category: '中等',
+    content: '概念层面是过关的，但性质的应用和综合题的独立分析还需要多加练习。建议课后把相关的性质和解题思路整理一下，用几道典型题反复演练从「看到题目 → 想到用什么方法」的思维链条。'
+  },
+  {
+    id: 3,
+    name: '善于总结规律',
+    category: '尖子生',
+    content: '能自己总结出题型的计算规律——比如发现"一个数乘0.5等于除以2"这样的规律，说明在计算过程中善于观察和归纳，数感比较好。基础和拔高题型都掌握得挺好的👍'
+  },
+  {
+    id: 4,
+    name: '整体表现不错开头',
+    category: '中等',
+    content: '今天整体表现不错，课堂专注度较高。说明课后的巩固是有效的，掌握得也比之前更扎实了。'
+  },
+  {
+    id: 5,
+    name: '圈画关键词好习惯',
+    category: '中等',
+    content: '有一个好习惯——读题时会主动圈画关键词，这一点值得表扬，能有效减少审题失误。'
+  }
+];
+
+let _currentTemplateCat = 'all';
+let _editingTemplateId = null;
+
+function getTemplates() {
+  const tpls = load('templates', null);
+  if (!tpls) {
+    // 首次使用，加载默认模板
+    save('templates', DEFAULT_TEMPLATES);
+    return DEFAULT_TEMPLATES;
+  }
+  return tpls;
+}
+
+function saveTemplates(tpls) {
+  save('templates', tpls);
+}
+
+function renderTemplateList() {
+  const tpls = getTemplates();
+  const box = $('templateList');
+  
+  let filtered = tpls;
+  if (_currentTemplateCat !== 'all') {
+    filtered = tpls.filter(t => t.category === _currentTemplateCat);
+  }
+  
+  if (!filtered.length) {
+    box.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📄</div>
+        <div class="empty-text">暂无模板</div>
+        <div class="empty-text" style="font-size:12px;margin-top:4px">点击右上角「+ 新建模板」添加</div>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(t => {
+    html += `
+      <div class="template-item" data-id="${t.id}">
+        <div class="template-header">
+          <div class="template-name">${esc(t.name)}</div>
+          <span class="template-cat">${esc(t.category)}</span>
+        </div>
+        <div class="template-content">${esc(t.content)}</div>
+        <div class="template-actions">
+          <button class="btn btn-sm btn-primary" data-action="copy-tpl">📋 复制</button>
+          <button class="btn btn-sm btn-secondary" data-action="edit-tpl">✏️ 编辑</button>
+          <button class="btn btn-sm btn-outline" data-action="del-tpl">🗑️ 删除</button>
+        </div>
+      </div>
+    `;
+  });
+  box.innerHTML = html;
+
+  // 绑定事件
+  box.querySelectorAll('[data-action="copy-tpl"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const id = parseInt(e.target.closest('.template-item').dataset.id);
+      const tpl = getTemplates().find(t => t.id === id);
+      if (tpl) {
+        copyText(tpl.content, tpl.name);
+      }
+    };
+  });
+
+  box.querySelectorAll('[data-action="edit-tpl"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const id = parseInt(e.target.closest('.template-item').dataset.id);
+      openTemplateModal(id);
+    };
+  });
+
+  box.querySelectorAll('[data-action="del-tpl"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const id = parseInt(e.target.closest('.template-item').dataset.id);
+      if (confirm('确定删除这个模板吗？')) {
+        const tpls = getTemplates().filter(t => t.id !== id);
+        saveTemplates(tpls);
+        renderTemplateList();
+        toast('已删除');
+      }
+    };
+  });
+}
+
+function openTemplateModal(id) {
+  _editingTemplateId = id || null;
+  if (id) {
+    const tpl = getTemplates().find(t => t.id === id);
+    if (tpl) {
+      $('templateModalTitle').textContent = '编辑模板';
+      $('tplName').value = tpl.name;
+      $('tplCategory').value = tpl.category;
+      $('tplContent').value = tpl.content;
+    }
+  } else {
+    $('templateModalTitle').textContent = '新建模板';
+    $('tplName').value = '';
+    $('tplCategory').value = '中等';
+    $('tplContent').value = '';
+  }
+  $('templateModal').classList.add('show');
+}
+
+function closeTemplateModal() {
+  $('templateModal').classList.remove('show');
+  _editingTemplateId = null;
+}
+
+function saveTemplate() {
+  const name = $('tplName').value.trim();
+  const category = $('tplCategory').value;
+  const content = $('tplContent').value.trim();
+  if (!name) { toast('请输入模板名称'); return; }
+  if (!content) { toast('请输入模板内容'); return; }
+
+  const tpls = getTemplates();
+  if (_editingTemplateId) {
+    // 编辑
+    const idx = tpls.findIndex(t => t.id === _editingTemplateId);
+    if (idx > -1) {
+      tpls[idx] = { ...tpls[idx], name, category, content };
+    }
+  } else {
+    // 新建
+    tpls.push({
+      id: Date.now(),
+      name,
+      category,
+      content
+    });
+  }
+  saveTemplates(tpls);
+  renderTemplateList();
+  closeTemplateModal();
+  toast('保存成功 ✓');
+}
+
 // ===================== 学生管理 =====================
 function getStudents() { return load('students', []); }
 
-function addStudent(name, note, nickname) {
+function addStudent(name, note, nickname, type) {
   const students = getStudents();
   if (students.some(s => s.name === name)) {
     toast('该学生已存在');
@@ -1322,6 +1619,7 @@ function addStudent(name, note, nickname) {
     id: Date.now(),
     name: name,
     nickname: nickname || '',
+    type: type || '中等',
     note: note || '',
     feedbacks: [],
     createdAt: Date.now()
@@ -1377,12 +1675,16 @@ function renderStudentList() {
   students.forEach(s => {
     const count = s.feedbacks?.length || 0;
     const displayName = s.nickname ? `${s.nickname}（${s.name}）` : s.name;
+    const typeLabel = s.type || '中等';
     html += `
       <div class="student-item" data-id="${s.id}">
         <div class="student-avatar">${esc((s.nickname || s.name).slice(0, 1))}</div>
         <div class="student-info">
           <div class="student-name">${esc(displayName)}</div>
-          <div class="student-desc">${esc(s.note || '暂无备注')}</div>
+          <div class="student-desc">
+            <span style="display:inline-block;padding:1px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:11px;margin-right:6px">${esc(typeLabel)}</span>
+            ${esc(s.note || '暂无备注')}
+          </div>
         </div>
         <div class="student-count">${count} 条</div>
       </div>
@@ -1629,12 +1931,30 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHistory();
   renderStudentList();
   renderStudentChips();
+  renderTemplateList();
   showInstallBanner();
 
   // Tab 切换
   document.querySelectorAll('.tab-item').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
+
+  // 模板分类切换
+  document.querySelectorAll('.template-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.template-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      _currentTemplateCat = tab.dataset.cat;
+      renderTemplateList();
+    });
+  });
+
+  // 新建模板
+  $('addTemplateBtn').addEventListener('click', () => openTemplateModal());
+  $('templateModal').addEventListener('click', (e) => {
+    if (e.target.id === 'templateModal') closeTemplateModal();
+  });
+  $('saveTemplateBtn').addEventListener('click', saveTemplate);
 
   // 字数统计
   $('notes').addEventListener('input', updateNoteCount);
@@ -1713,6 +2033,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 填写提示展开/收起
+  $('toggleTips').addEventListener('click', () => {
+    const box = $('tipsBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  });
+
   // 添加学生
   $('addStudentBtn').addEventListener('click', () => {
     $('newStudentName').value = '';
@@ -1726,9 +2052,10 @@ document.addEventListener('DOMContentLoaded', () => {
   $('saveStudentBtn').addEventListener('click', () => {
     const name = $('newStudentName').value.trim();
     const nickname = $('newStudentNickname').value.trim();
+    const type = $('newStudentType').value;
     const note = $('newStudentNote').value.trim();
     if (!name) { toast('请输入学生姓名'); return; }
-    if (addStudent(name, note, nickname)) {
+    if (addStudent(name, note, nickname, type)) {
       $('addStudentModal').classList.remove('show');
       toast('添加成功 ✓');
     }
