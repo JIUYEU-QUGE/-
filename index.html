@@ -338,6 +338,28 @@
   .hist-info{flex:1;min-width:0}
   .hist-title{font-size:14px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hist-meta{font-size:12px;color:var(--text-light)}
+  .student-hist-group{
+    border-bottom:8px solid var(--bg);
+  }
+  .student-hist-group:last-child{border-bottom:none}
+  .student-hist-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 12px 8px;
+    font-size:14px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .student-hist-more{
+    padding:10px 12px;
+    font-size:12px;
+    color:var(--brand);
+    text-align:center;
+    border-top:1px solid var(--border);
+    cursor:pointer;
+  }
+  .student-hist-more:active{background:var(--surface-2)}
   .hist-delete{
     background:none;
     border:none;
@@ -488,6 +510,31 @@
     margin:0;
   }
 
+  /* Segmented Control */
+  .seg-control{
+    display:flex;
+    background:var(--surface-2);
+    border-radius:10px;
+    padding:3px;
+  }
+  .seg-btn{
+    flex:1;
+    border:none;
+    background:transparent;
+    padding:8px 12px;
+    font-size:13px;
+    color:var(--text-sub);
+    border-radius:8px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .seg-btn.active{
+    background:var(--surface);
+    color:var(--text);
+    font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  }
+
   /* Feedback detail view */
   .detail-header{
     position:sticky;
@@ -617,6 +664,7 @@
   <div class="top-nav">
     <h1>📝 课堂反馈</h1>
     <div class="nav-actions">
+      <button class="icon-btn" id="refreshBtn" title="刷新">🔄</button>
       <button class="icon-btn" id="settingsBtn" title="设置">⚙️</button>
     </div>
   </div>
@@ -681,7 +729,10 @@
       <div class="card">
         <div class="card-title">
           <span>课堂反馈记录</span>
-          <span style="color:var(--brand);font-size:12px;font-weight:500;cursor:pointer" id="toggleTips">💡 填写提示</span>
+          <span style="display:flex;gap:12px">
+            <span style="color:var(--text-light);font-size:12px;cursor:pointer" id="toggleExample">📝 示例</span>
+            <span style="color:var(--brand);font-size:12px;font-weight:500;cursor:pointer" id="toggleTips">💡 填写提示</span>
+          </span>
         </div>
         <div class="tips-box" id="tipsBox" style="display:none">
           <div style="font-size:13px;color:var(--text-sub);line-height:1.8">
@@ -717,6 +768,10 @@
       <div class="section-header">
         <h2 class="section-title">历史记录</h2>
         <span style="font-size:12px;color:var(--text-light)" id="histCount">0 条</span>
+      </div>
+      <div class="seg-control" style="margin:0 16px 12px">
+        <button class="seg-btn active" data-hist-view="time">按时间</button>
+        <button class="seg-btn" data-hist-view="student">按学生</button>
       </div>
       <div class="card" style="padding:0">
         <div id="histList">
@@ -1404,6 +1459,8 @@ function saveHistory(obj) {
   renderStudentList();
 }
 
+let _histView = 'time'; // time | student
+
 function renderHistory() {
   const hist = loadHistory();
   const box = $('histList');
@@ -1419,48 +1476,140 @@ function renderHistory() {
     return;
   }
 
-  let html = '';
-  hist.forEach((h, idx) => {
-    const dateStr = h.date ? fmtDate(new Date(h.date)) : '未知日期';
-    const timeStr = new Date(h.ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    html += `
-      <div class="hist-item" data-idx="${idx}">
-        <div class="hist-info">
-          <div class="hist-title">${esc(h.subject)} · ${esc(h.names)}</div>
-          <div class="hist-meta">${esc(dateStr)} · ${h.studentCount}人 · ${timeStr}</div>
+  if (_histView === 'student') {
+    // 按学生分组
+    const studentMap = {};
+    const students = getStudents();
+    
+    // 先加已有档案的学生
+    students.forEach(s => {
+      studentMap[s.name] = { name: s.name, nickname: s.nickname, type: s.type, entries: [] };
+    });
+    
+    // 再从历史记录里收集学生反馈
+    hist.forEach((h, idx) => {
+      (h.data?.students || []).forEach(stu => {
+        const name = stu.name || '未知';
+        if (!studentMap[name]) {
+          studentMap[name] = { name: name, nickname: stu.nickname || '', type: '', entries: [] };
+        }
+        studentMap[name].entries.push({
+          histIdx: idx,
+          date: h.date,
+          ts: h.ts,
+          topic: h.topic,
+          subject: h.subject,
+          feedback: stu.feedback
+        });
+      });
+    });
+    
+    // 按反馈数量排序
+    const sorted = Object.values(studentMap)
+      .filter(s => s.entries.length > 0)
+      .sort((a, b) => b.entries.length - a.entries.length);
+    
+    if (!sorted.length) {
+      box.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-text">还没有学生反馈记录</div>
+        </div>`;
+      return;
+    }
+    
+    let html = '';
+    sorted.forEach(s => {
+      const displayName = s.nickname || s.name;
+      const typeBadge = s.type ? `<span style="font-size:11px;padding:2px 6px;background:var(--brand-soft);color:var(--brand);border-radius:6px;margin-left:6px">${esc(s.type)}</span>` : '';
+      // 只显示最近3条，点击"查看全部"跳转学生详情
+      const recent = s.entries.slice(0, 3);
+      html += `
+        <div class="student-hist-group">
+          <div class="student-hist-header">
+            <span>${esc(displayName)}${typeBadge}</span>
+            <span style="font-size:12px;color:var(--text-light)">${s.entries.length} 条反馈</span>
+          </div>`;
+      recent.forEach(e => {
+        const dateStr = e.date ? fmtDate(new Date(e.date)) : '未知日期';
+        html += `
+          <div class="hist-item" data-student-name="${esc(s.name)}">
+            <div class="hist-info">
+              <div class="hist-title">${esc(e.subject || '')} · ${esc(e.topic || '')}</div>
+              <div class="hist-meta">${esc(dateStr)}</div>
+            </div>
+          </div>`;
+      });
+      html += `
+          <div class="student-hist-more" data-student-name="${esc(s.name)}">
+            查看全部 ${s.entries.length} 条 →
+          </div>
+        </div>`;
+    });
+    box.innerHTML = html;
+    
+    // 点击跳转到学生详情
+    box.querySelectorAll('[data-student-name]').forEach(el => {
+      el.onclick = () => {
+        const name = el.dataset.studentName;
+        showStudentDetailByName(name);
+      };
+    });
+    
+  } else {
+    // 按时间排序（原有视图）
+    let html = '';
+    hist.forEach((h, idx) => {
+      const dateStr = h.date ? fmtDate(new Date(h.date)) : '未知日期';
+      const timeStr = new Date(h.ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+      html += `
+        <div class="hist-item" data-idx="${idx}">
+          <div class="hist-info">
+            <div class="hist-title">${esc(h.subject)} · ${esc(h.names)}</div>
+            <div class="hist-meta">${esc(dateStr)} · ${h.studentCount}人 · ${timeStr}</div>
+          </div>
+          <button class="hist-delete" data-del="${idx}">×</button>
         </div>
-        <button class="hist-delete" data-del="${idx}">×</button>
-      </div>
-    `;
-  });
-  box.innerHTML = html;
+      `;
+    });
+    box.innerHTML = html;
 
-  // 点击恢复
-  box.querySelectorAll('.hist-item').forEach(item => {
-    item.querySelector('.hist-info').onclick = () => {
-      const idx = parseInt(item.dataset.idx);
-      const h = hist[idx];
-      // 恢复到生成页
-      if (h.date) $('date').value = h.date;
-      if (h.subject) $('subject').value = h.subject;
-      if (h.topic) $('topic').value = h.topic;
-      renderResults(h.data);
-      switchTab('generate');
-      toast('已加载历史记录');
-    };
-  });
+    // 点击恢复
+    box.querySelectorAll('.hist-item').forEach(item => {
+      item.querySelector('.hist-info').onclick = () => {
+        const idx = parseInt(item.dataset.idx);
+        const h = hist[idx];
+        if (h.date) $('date').value = h.date;
+        if (h.subject) $('subject').value = h.subject;
+        if (h.topic) $('topic').value = h.topic;
+        renderResults(h.data);
+        switchTab('generate');
+        toast('已加载历史记录');
+      };
+    });
 
-  // 删除
-  box.querySelectorAll('[data-del]').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.del);
-      hist.splice(idx, 1);
-      save('history', hist);
-      renderHistory();
-      toast('已删除');
-    };
-  });
+    // 删除
+    box.querySelectorAll('[data-del]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.del);
+        hist.splice(idx, 1);
+        save('history', hist);
+        renderHistory();
+        toast('已删除');
+      };
+    });
+  }
+}
+
+function showStudentDetailByName(name) {
+  const students = getStudents();
+  const student = students.find(s => s.name === name);
+  if (student) {
+    showStudentDetail(student.id);
+  } else {
+    toast('该学生未添加到档案');
+  }
 }
 
 // ===================== 模板管理 =====================
@@ -1969,6 +2118,16 @@ document.addEventListener('DOMContentLoaded', () => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
 
+  // 历史视图切换
+  document.querySelectorAll('[data-hist-view]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-hist-view]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _histView = btn.dataset.histView;
+      renderHistory();
+    });
+  });
+
   // 模板分类切换
   document.querySelectorAll('.template-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1993,6 +2152,11 @@ document.addEventListener('DOMContentLoaded', () => {
   $('genBtn').addEventListener('click', generateFeedback);
 
   // 设置
+  $('refreshBtn').addEventListener('click', () => {
+    if (confirm('确定要刷新页面吗？未保存的内容会丢失。')) {
+      window.location.reload(true);
+    }
+  });
   $('settingsBtn').addEventListener('click', openSettings);
   $('settingsModal').addEventListener('click', (e) => {
     if (e.target.id === 'settingsModal') closeSettings();
