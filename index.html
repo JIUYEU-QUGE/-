@@ -718,9 +718,13 @@
       <div class="card-title">API 配置</div>
       <div class="field">
         <label>API Key</label>
-        <input type="password" id="apiKey" placeholder="sk-...">
+        <div style="display:flex;gap:8px">
+          <input type="password" id="apiKey" placeholder="sk-..." style="flex:1">
+          <button class="btn btn-sm btn-secondary" id="pasteKeyBtn" style="white-space:nowrap">📋 粘贴</button>
+          <button class="btn btn-sm btn-outline" id="toggleKeyBtn" style="white-space:nowrap">👁</button>
+        </div>
         <div class="key-mask" id="keyMask"></div>
-        <div class="hint">在 DeepSeek 开放平台注册获取，数据仅存本机</div>
+        <div class="hint">在 DeepSeek 开放平台注册获取，数据仅存本机，刷新不丢失</div>
       </div>
       <div class="row">
         <div class="field">
@@ -1511,11 +1515,49 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 设置自动保存
-  ['apiKey', 'apiBase', 'model', 'defaultSubject', 'feedbackLength', 'toneStyle'].forEach(id => {
+  ['apiBase', 'model', 'defaultSubject', 'feedbackLength', 'toneStyle'].forEach(id => {
     $(id).addEventListener('change', e => {
       save(id, e.target.value);
-      if (id === 'apiKey') updateKeyMask();
     });
+  });
+
+  // API Key 实时保存（input 事件，输入即存）
+  $('apiKey').addEventListener('input', e => {
+    save('apiKey', e.target.value);
+    updateKeyMask();
+  });
+
+  // 粘贴 API Key 按钮
+  $('pasteKeyBtn').addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim().startsWith('sk-')) {
+        $('apiKey').value = text.trim();
+        save('apiKey', text.trim());
+        updateKeyMask();
+        toast('已粘贴 API Key ✓');
+      } else {
+        $('apiKey').value = text.trim();
+        save('apiKey', text.trim());
+        updateKeyMask();
+        toast('已粘贴');
+      }
+    } catch(e) {
+      toast('无法读取剪贴板，请手动粘贴');
+    }
+  });
+
+  // 显示/隐藏 API Key
+  $('toggleKeyBtn').addEventListener('click', () => {
+    const input = $('apiKey');
+    const btn = $('toggleKeyBtn');
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+    }
   });
 
   // 学科和表情自动保存
