@@ -831,6 +831,7 @@
           <div id="detailStudentName" style="font-size:16px;font-weight:700"></div>
           <div style="font-size:12px;color:var(--text-light)" id="detailStudentCount"></div>
         </div>
+        <button class="icon-btn" id="deleteStudentDetailBtn" title="删除学生" style="color:#ff4d4f">🗑️</button>
       </div>
       <div class="card" style="padding:0" id="studentFeedbackList">
       </div>
@@ -1794,13 +1795,33 @@ function addStudent(name, note, nickname, type) {
     toast('该学生已存在');
     return false;
   }
+  
+  // 从历史记录中回填该学生的历史反馈
+  const hist = loadHistory();
+  const feedbacks = [];
+  hist.forEach(h => {
+    (h.data?.students || []).forEach(s => {
+      if (s.name === name) {
+        feedbacks.push({
+          id: h.id + Math.random(),
+          date: h.date,
+          topic: h.topic || '',
+          feedback: s.feedback,
+          subject: h.subject || ''
+        });
+      }
+    });
+  });
+  // 按日期倒序
+  feedbacks.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  
   students.push({
     id: Date.now(),
     name: name,
     nickname: nickname || '',
     type: type || '中等',
     note: note || '',
-    feedbacks: [],
+    feedbacks: feedbacks,
     createdAt: Date.now()
   });
   save('students', students);
@@ -1818,11 +1839,23 @@ function showAddStudentFromResult(name) {
 }
 
 function deleteStudent(id) {
-  let students = getStudents();
-  students = students.filter(s => s.id !== id);
-  save('students', students);
+  const students = getStudents();
+  const student = students.find(s => s.id === id);
+  if (!student) return;
+  
+  const count = student.feedbacks?.length || 0;
+  const msg = count > 0 
+    ? `确定删除「${student.nickname || student.name}」吗？\n\n该学生有 ${count} 条历史反馈。\n点「确定」只删除学生档案，历史记录保留。\n点「取消」再想想。`
+    : `确定删除「${student.nickname || student.name}」吗？`;
+  
+  if (!confirm(msg)) return;
+  
+  const newStudents = students.filter(s => s.id !== id);
+  save('students', newStudents);
   renderStudentList();
   renderStudentChips();
+  switchTab('student');
+  toast('已删除学生');
 }
 
 function addStudentFeedback(name, feedback) {
@@ -1858,25 +1891,38 @@ function renderStudentList() {
     html += `
       <div class="student-item" data-id="${s.id}">
         <div class="student-avatar">${esc((s.nickname || s.name).slice(0, 1))}</div>
-        <div class="student-info">
+        <div class="student-info" style="flex:1;min-width:0">
           <div class="student-name">${esc(displayName)}</div>
           <div class="student-desc">
             <span style="display:inline-block;padding:1px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:11px;margin-right:6px">${esc(typeLabel)}</span>
             ${esc(s.note || '暂无备注')}
           </div>
         </div>
-        <div class="student-count">${count} 条</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="student-count">${count} 条</span>
+          <button class="icon-btn student-del-btn" data-del-id="${s.id}" title="删除" style="width:28px;height:28px;font-size:14px">🗑️</button>
+        </div>
       </div>
     `;
   });
   box.innerHTML = html;
 
   // 点击查看详情
-  box.querySelectorAll('.student-item').forEach(item => {
-    item.onclick = () => {
+  box.querySelectorAll('.student-info').forEach(info => {
+    info.onclick = (e) => {
+      const item = e.target.closest('.student-item');
       const id = parseInt(item.dataset.id);
       const student = getStudents().find(s => s.id === id);
       if (student) showStudentDetail(student);
+    };
+  });
+  
+  // 快速删除
+  box.querySelectorAll('.student-del-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.delId);
+      deleteStudent(id);
     };
   });
 }
@@ -1914,22 +1960,40 @@ function showStudentDetail(student) {
   $('detailStudentName').textContent = student.name;
   const count = student.feedbacks?.length || 0;
   $('detailStudentCount').textContent = count + ' 条反馈记录';
+  // 存当前学生id给删除按钮用
+  $('deleteStudentDetailBtn').dataset.studentId = student.id;
 
   const list = $('studentFeedbackList');
   if (!count) {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">还没有反馈记录</div></div>';
   } else {
     let html = '';
-    student.feedbacks.forEach(f => {
+    student.feedbacks.forEach((f, idx) => {
       const dateStr = f.date ? fmtDate(new Date(f.date)) : '未知日期';
       html += `
-        <div class="feedback-entry" style="padding:12px 16px;cursor:pointer">
-          <div class="feedback-date">${esc(dateStr)} · ${esc(f.topic || f.subject || '')}</div>
-          <div class="feedback-text">${esc(f.feedback || '')}</div>
+        <div class="feedback-entry" style="padding:12px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div class="feedback-date">${esc(dateStr)} · ${esc(f.topic || f.subject || '')}</div>
+            <button class="copy-fb-btn" style="font-size:12px;padding:4px 10px;background:var(--surface-2);border:none;border-radius:6px;color:var(--text-sub);cursor:pointer" data-copy-idx="${idx}">📋 复制</button>
+          </div>
+          <div class="feedback-text" style="white-space:pre-wrap">${esc(f.feedback || '')}</div>
         </div>
       `;
     });
     list.innerHTML = html;
+    
+    // 复制按钮
+    list.querySelectorAll('.copy-fb-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.copyIdx);
+        const fb = student.feedbacks[idx];
+        if (fb?.feedback) {
+          navigator.clipboard.writeText(fb.feedback);
+          toast('已复制');
+        }
+      };
+    });
   }
 
   switchTab('student-detail');
@@ -2257,6 +2321,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 学生详情返回
   $('backFromStudent').addEventListener('click', () => switchTab('students'));
+  $('deleteStudentDetailBtn').addEventListener('click', () => {
+    const id = parseInt($('deleteStudentDetailBtn').dataset.studentId);
+    if (id) deleteStudent(id);
+  });
 
   // 数据管理
   $('exportBtn').addEventListener('click', exportData);
