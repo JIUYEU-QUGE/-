@@ -878,9 +878,9 @@
       <div class="field">
         <label>反馈字数</label>
         <select id="feedbackLength">
-          <option value="short">简短（80-120字）</option>
-          <option value="medium" selected>适中（120-200字）</option>
-          <option value="long">详细（200-300字）</option>
+          <option value="short">简短（100字左右）</option>
+          <option value="medium">适中（200字左右）</option>
+          <option value="long" selected>详细（300-500字）</option>
         </select>
       </div>
       <div class="field">
@@ -1052,28 +1052,30 @@ function buildSystemPrompt() {
   const length = load('feedbackLength', 'medium');
   const tone = load('toneStyle', 'warm');
   
-  let lengthDesc = '120-200字';
-  if (length === 'short') lengthDesc = '80-120字';
-  if (length === 'long') lengthDesc = '200-300字';
+  let lengthDesc = '约200字';
+  if (length === 'short') lengthDesc = '约100字';
+  if (length === 'long') lengthDesc = '300-500字';
 
   let toneDesc = '亲切温暖，像老师和家长聊天一样自然';
   if (tone === 'professional') toneDesc = '专业严谨，体现教学专业性';
   if (tone === 'concise') toneDesc = '简洁直接，重点突出';
 
-  return `你是课堂反馈整理助手。把老师口语化的课堂记录，整理成适合发家长微信群的纯文本课堂反馈。
+  return `你是课堂反馈整理助手。把老师口语化的课堂记录，整理成适合发家长微信群的纯文本课堂反馈。目标字数：${lengthDesc}。
 
 规则：
-1. 只整理不创作。所有学生信息必须100%来自记录，没有提到的就不写，宁少勿多，绝不编造。
-2. 针对记录里的问题，可以给合理的教学建议。
-3. 全积极表达，不用负面词汇。
-4. 详略随内容定，内容多就详细，内容少就简洁，不凑字数。
-5. 纯文本输出。绝对不要用任何Markdown格式（不要星号加粗、不要斜体、不要反引号、不要井号）。用emoji区分板块。
-6. 课堂表现部分是自然的段落叙述，不要加小标题，不要分点。
+1. 只整理不创作。所有关于学生表现的信息必须100%来自记录，没有提到的就不写，绝不编造。
+2. 知识点可以适当展开。对记录中提到的每个知识点，用1-2句话说明这个知识点的重难点或易错点在哪里，帮助家长理解。
+3. 针对记录里的问题，可以给合理的教学建议。
+4. 全积极表达，不用负面词汇。
+5. 内容要充实，不要过于简略。有内容就展开写，说清楚、说具体。
+6. 纯文本输出。绝对不要用任何Markdown格式（不要星号加粗、不要斜体、不要反引号、不要井号）。用emoji区分板块。
+7. 课堂表现部分是自然的段落叙述，不要加小标题，不要分点。
 
 处理步骤：
 1. 提取记录中的信息点：知识点、优点、问题、作业
 2. 重组内容：先说优点再说问题，自然过渡，段落式叙述
 3. 润色：口语改书面，负面改积极
+4. 扩充知识点：对每个知识点补充1-2句重难点说明
 
 输出格式：
 🌹日期学科课堂反馈🌹
@@ -1090,16 +1092,17 @@ function buildSystemPrompt() {
 2. 
 
 注意：
-- 没有作业的话，❤️课后作业整个板块都不要写
+- 没有作业的话，❤️课后作业整个板块完全不要写，连标题都不要出现
 - 没有问题的话，就只写优点，不要硬加问题
-- 用"总体来看"收尾，根据内容自然收束，不一定要加鼓励的话
+- 用"总体来看"收尾，根据内容自然收束
 - 说问题之前先铺垫一句正面的
 - 称呼学生用昵称（学生档案里有）
 
 学生识别：优先从学生档案匹配，用昵称输出。档案里没有的从记录中识别，isNew设为true。
 
 严格只输出JSON，不要任何解释：
-{"topic":"知识点简短描述","students":[{"name":"全名","nickname":"昵称","feedback":"完整反馈纯文本","isNew":true/false}]}`;
+{"topic":"知识点简短描述","students":[{"name":"全名","nickname":"昵称","feedback":"完整反馈纯文本","isNew":true/false}]}
+`;
 }
 
 function buildUserPrompt() {
